@@ -10,9 +10,11 @@
   
   body{
     display: flex;
+    /* 所有区域可拖拽 */
     -webkit-app-region: drag;
   }
   
+  /* 的按钮标记为不可拖拽，否则按钮将无法点击。 */
   .enable-click {
     -webkit-app-region: no-drag;
   }
