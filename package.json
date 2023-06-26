@@ -8,7 +8,7 @@
     "start": "nodemon --watch index.js --exec electron .",
     "build-icon": "electron-icon-builder --input=./public/icon.png --output=build --flatten",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder",
+    "dist": "export PYTHON_PATH='/Library/Frameworks/Python.framework/Versions/2.7/bin/python' && electron-builder",
     "release": "cross-env GH_TOKEN=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 electron-builder"
   },
   "build": {
