@@ -1,129 +1,137 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, screen } = require('electron');
+const electron = require('electron')
+const path = require('path')
 
-let mainWin = null,
-  tray = null,
-  remindWin = null;
+const { app, BrowserWindow, ipcMain, Tray, Menu, screen, dialog } = electron
+const { autoUpdater } = require('electron-updater')
+const iconPath = path.join(__dirname, './src/img/icon.png')
+
+let mainWindow
+let tray
+let remindWindow
 
 app.on('ready', () => {
+  //检查更新
+  // checkUpdate()
 
-  mainWin = new BrowserWindow({
-    // 无边框：隐藏菜单栏和工具栏
+
+  mainWindow = new BrowserWindow({
     frame: false,
     resizable: false,
     width: 800,
     height: 600,
-    webPreferences: {
-      // 置应用在后台正常运行
+    icon: iconPath,
+    webPreferences:{
       backgroundThrottling: false,
-      // 设置能在页面使用nodejs Api
-      nodeIntegration: true,
-      // 否在独立 JavaScript 环境中运行 Electron API和指定的preload 脚本.
+      nodeIntegration:true,
       contextIsolation: false
+      // preload: path.join(__dirname, './preload.js')
     }
-  });
-
-  // 移除菜单
-  mainWin.removeMenu();
-
-  mainWin.loadFile('./src/main.html');
-
-  // 实例化一个托盘对象，构造函数参数是一个小图标
-  tray = new Tray('./src/img/icon.png')
-
-  // 鼠标移过去，显示一个文本提示
-  tray.setToolTip('To Do');
-
-  // 点击托盘显示隐藏窗口
+  })
+  mainWindow.loadURL(`file://${__dirname}/src/main.html`)
+  mainWindow.removeMenu()
+  tray = new Tray(iconPath)
+  tray.setToolTip('Tasky')
   tray.on('click', () => {
-    // console.log('tray click!',{isVisible:mainWin.isVisible})
-
-    if (mainWin.isVisible()) {
-      mainWin.hide()
-    } else {
-      mainWin.show()
+    if(mainWindow.isVisible()){
+      mainWindow.hide()
+    }else{
+      mainWindow.show()
     }
-  });
-
-  // 右键托盘，添加退出上下文菜单
+  })
   tray.on('right-click', () => {
     const menuConfig = Menu.buildFromTemplate([
       {
         label: 'Quit',
         click: () => app.quit()
       }
-    ]);
-    tray.popUpContextMenu(menuConfig);
-  });
-
-  // 隐藏窗口
-  ipcMain.on('mainWin:close', (evt, data) => {
-    mainWin.hide()
-  });
-
-  ipcMain.on('remindWindow:close', () => {
-    remindWin.hide()
-  });
-
-  // const point = screen.getCursorScreenPoint();
-
-  // console.log({ point })
-
-
-
-
-  // setTimeout(() => {
-  //   mainWin.hide()
-  //   createRemindWindow('test,')
-  // }, 3000)
-
-});
-
-
-function createRemindWindow(task) {
-
-  remindWin = new BrowserWindow({
-    width: 300,
-    // frame: false,
-    height: 300,
-    webPreferences: {
-      // 设置能在页面使用nodejs Api
-      nodeIntegration: true,
-      // 是否在独立 JavaScript 环境中运行 Electron API和指定的preload 脚本.
-      contextIsolation: false
-    }
-  });
-
-  // 获取主屏幕尺寸信息
-  const size = screen.getPrimaryDisplay().workAreaSize;
-  // 获取托盘边界
-  const { y } = tray.getBounds();
-  const { width, height } = remindWin.getBounds();
-  // 如果是 Mac os 
-  const yPos = process.platform === 'darwin' ? y : y - height;
-
-  remindWin.setBounds({
-    width,
-    height,
-    x: size.width - width,
-    y: yPos
+    ])
+    tray.popUpContextMenu(menuConfig)
   })
 
-  // 当有多个窗口时候，让提醒窗口，处于最上方
-  remindWin.setAlwaysOnTop(true)
+})
 
-  remindWin.loadFile('./src/remind.html');
+ipcMain.on('mainWindow:close', () => {
+  mainWindow.hide()
+})
 
-  remindWin.webContents.send('setTask', task);
+ipcMain.on('remindWindow:close', () => {
+  remindWindow.close()
+})
 
-  // setTimeout(() => {
-  //   remindWin.close()
-  // }, 4000)
+ipcMain.on('setTaskTimer', (event, time, task) => {
+  const now = new Date()
+  const date = new Date()
+  date.setHours(time.slice(0,2), time.slice(3),0)
+  const timeout = date.getTime() - now.getTime()
+  setTimeout(() => {
+    createRemindWindow(task)
+  }, timeout)
+})
 
-  remindWin.on('closed', () => {
-    console.log('remind Win closed');
-    remindWin = null;
-  });
-
-  
-
+function createRemindWindow (task) {
+  if(remindWindow) remindWindow.close()
+  remindWindow = new BrowserWindow({
+    height: 450,
+    width: 360,
+    resizable: false,
+    frame: false,
+    icon: iconPath,
+    show: false,
+    webPreferences:{
+      nodeIntegration:true,
+      contextIsolation: false,
+      // preload: path.join(__dirname, './preload.js')
+    }
+  })
+  remindWindow.removeMenu()
+  const size = screen.getPrimaryDisplay().workAreaSize
+  const { y } = tray.getBounds()
+  const { height, width } = remindWindow.getBounds()
+  const yPosition = process.platform === 'darwin' ? y : y - height
+  remindWindow.setBounds({
+    x: size.width - width,
+    y: yPosition,
+    height,
+    width 
+  })
+  remindWindow.setAlwaysOnTop(true)
+  remindWindow.loadURL(`file://${__dirname}/src/remind.html`)
+  remindWindow.show()
+  remindWindow.webContents.send('setTask', task)
+  remindWindow.on('closed', () => { remindWindow = null })
+  setTimeout( () => {
+    remindWindow && remindWindow.close()
+  }, 50 * 1000)
 }
+
+function checkUpdate(){
+  if(process.platform == 'darwin'){
+    autoUpdater.setFeedURL('http://127.0.0.1:9005/darwin')
+  }else{
+    autoUpdater.setFeedURL('http://127.0.0.1:9005/win32')
+  }
+  autoUpdater.checkForUpdates()
+  autoUpdater.on('error', (err) => {
+    console.log(err)
+  })
+  autoUpdater.on('update-available', () => {
+    console.log('found new version')
+  })
+  autoUpdater.on('update-downloaded', () => {
+    dialog.showMessageBox({
+      type: 'info',
+      title: '应用更新',
+      message: '发现新版本，是否更新？',
+      buttons: ['是', '否']
+    }).then((buttonIndex) => {
+      if(buttonIndex.response == 0) {
+        autoUpdater.quitAndInstall()
+        app.quit()
+      }
+    })
+  })
+}
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow()
+})
