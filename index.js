@@ -11,8 +11,7 @@ let remindWindow
 
 app.on('ready', () => {
   //检查更新
-  // checkUpdate()
-
+  checkUpdate()
 
   mainWindow = new BrowserWindow({
     frame: false,
@@ -111,12 +110,18 @@ function checkUpdate(){
     autoUpdater.setFeedURL('http://127.0.0.1:9005/win32')
   }
   autoUpdater.checkForUpdates()
+
   autoUpdater.on('error', (err) => {
     console.log(err)
   })
+  //监听'update-available'事件，发现有新版本时触发
   autoUpdater.on('update-available', () => {
     console.log('found new version')
   })
+
+  //默认会自动下载新版本，如果不想自动下载，设置autoUpdater.autoDownload = false
+
+  //监听'update-downloaded'事件，新版本下载完成时触发
   autoUpdater.on('update-downloaded', () => {
     dialog.showMessageBox({
       type: 'info',
